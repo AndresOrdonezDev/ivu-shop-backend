@@ -1,9 +1,10 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { Role } from '../common/enums/role.enum';
 
 @Injectable()
 export class UsersService {
@@ -36,33 +37,45 @@ export class UsersService {
       .getOne();
   }
 
-  async findByVerificationToken(token: string): Promise<User | null> {
+  async findByEmailVerificationToken(token: string): Promise<User | null> {
     return this.usersRepository
       .createQueryBuilder('user')
-      .addSelect('user.verificationToken')
-      .where('user.verificationToken = :token', { token })
+      .addSelect('user.emailVerificationToken')
+      .where('user.emailVerificationToken = :token', { token })
       .getOne();
   }
 
-  async findByResetPasswordToken(token: string): Promise<User | null> {
+  async findByPasswordResetToken(token: string): Promise<User | null> {
     return this.usersRepository
       .createQueryBuilder('user')
-      .addSelect('user.resetPasswordToken')
-      .where('user.resetPasswordToken = :token', { token })
+      .addSelect('user.passwordResetToken')
+      .where('user.passwordResetToken = :token', { token })
       .getOne();
+  }
+
+  async findByTenant(tenantId: string): Promise<User[]> {
+    return this.usersRepository.find({
+      where: { tenantId, isActive: true },
+      order: { createdAt: 'ASC' },
+    });
   }
 
   async findAll(): Promise<User[]> {
     return this.usersRepository.find();
   }
 
-  async create(dto: CreateUserDto): Promise<User> {
+  async create(dto: CreateUserDto, tenantId: string): Promise<User> {
     const existing = await this.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('Email already in use');
     }
     const hashedPassword = await bcrypt.hash(dto.password, 12);
-    return this.usersRepository.save({ ...dto, password: hashedPassword });
+    return this.usersRepository.save({
+      ...dto,
+      password: hashedPassword,
+      tenantId,
+      role: dto.role ?? Role.EMPLOYEE,
+    });
   }
 
   async save(user: Partial<User>): Promise<User> {
@@ -71,6 +84,12 @@ export class UsersService {
 
   async update(id: string, partial: Partial<User>): Promise<void> {
     await this.usersRepository.update(id, partial);
+  }
+
+  async deactivate(id: string): Promise<void> {
+    const user = await this.findById(id);
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    await this.usersRepository.update(id, { isActive: false });
   }
 
   async remove(id: string): Promise<void> {

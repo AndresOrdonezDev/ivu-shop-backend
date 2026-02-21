@@ -5,6 +5,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
+import { PlansModule } from './plans/plans.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { TenantsModule } from './tenants/tenants.module';
 import { TenantConnectionInterceptor } from './common/interceptors/tenant-connection.interceptor';
 
 @Module({
@@ -50,6 +53,9 @@ import { TenantConnectionInterceptor } from './common/interceptors/tenant-connec
     UsersModule,
     AuthModule,
     MailModule,
+    PlansModule,
+    SubscriptionsModule,
+    TenantsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: TenantConnectionInterceptor },

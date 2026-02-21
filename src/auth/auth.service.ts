@@ -38,21 +38,20 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 12);
     const verificationToken = randomBytes(32).toString('hex');
-    const verificationTokenExpiry = new Date(
-      Date.now() + 24 * 60 * 60 * 1000,
-    ); // 24h
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
     await this.usersService.save({
-      name: dto.name,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
       email: dto.email,
       password: hashedPassword,
-      verificationToken,
-      verificationTokenExpiry,
+      emailVerificationToken: verificationToken,
+      emailVerificationTokenExpiresAt: verificationTokenExpiry,
     });
 
     await this.mailService.sendVerificationEmail(
       dto.email,
-      dto.name,
+      dto.firstName,
       verificationToken,
     );
 
@@ -65,24 +64,24 @@ export class AuthService {
   // ─── Verify Email ─────────────────────────────────────────────────────────────
 
   async verifyEmail(token: string): Promise<{ message: string }> {
-    const user = await this.usersService.findByVerificationToken(token);
+    const user = await this.usersService.findByEmailVerificationToken(token);
 
     if (
       !user ||
-      !user.verificationTokenExpiry ||
-      user.verificationTokenExpiry < new Date()
+      !user.emailVerificationTokenExpiresAt ||
+      user.emailVerificationTokenExpiresAt < new Date()
     ) {
       throw new BadRequestException('Invalid or expired verification token');
     }
 
-    if (user.isVerified) {
+    if (user.isEmailVerified) {
       throw new BadRequestException('Account is already verified');
     }
 
     await this.usersService.update(user.id, {
-      isVerified: true,
-      verificationToken: null,
-      verificationTokenExpiry: null,
+      isEmailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationTokenExpiresAt: null,
     });
 
     return { message: 'Email verified successfully. You can now log in.' };
@@ -104,7 +103,7 @@ export class AuthService {
 
     if (!user.isActive) throw new UnauthorizedException(GENERIC_ERROR);
 
-    if (!user.isVerified) {
+    if (!user.isEmailVerified) {
       throw new ForbiddenException(
         'Please verify your email address before logging in',
       );
@@ -114,9 +113,11 @@ export class AuthService {
       user.id,
       user.email,
       user.role,
+      user.tenantId,
     );
 
     await this.storeRefreshToken(user.id, refreshToken);
+    await this.usersService.update(user.id, { lastLoginAt: new Date() });
     this.setRefreshCookie(res, refreshToken);
 
     return { accessToken };
@@ -150,6 +151,7 @@ export class AuthService {
       user.id,
       user.email,
       user.role,
+      user.tenantId,
     );
 
     await this.storeRefreshToken(user.id, refreshToken);
@@ -167,18 +169,18 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
     if (!user) return { message: GENERIC_MSG };
 
-    const resetPasswordToken = randomBytes(32).toString('hex');
-    const resetPasswordTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
+    const passwordResetToken = randomBytes(32).toString('hex');
+    const passwordResetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
     await this.usersService.update(user.id, {
-      resetPasswordToken,
-      resetPasswordTokenExpiry,
+      passwordResetToken,
+      passwordResetTokenExpiresAt,
     });
 
     await this.mailService.sendResetPasswordEmail(
       user.email,
-      user.name,
-      resetPasswordToken,
+      user.firstName,
+      passwordResetToken,
     );
 
     return { message: GENERIC_MSG };
@@ -187,12 +189,12 @@ export class AuthService {
   // ─── Reset Password ───────────────────────────────────────────────────────────
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
-    const user = await this.usersService.findByResetPasswordToken(dto.token);
+    const user = await this.usersService.findByPasswordResetToken(dto.token);
 
     if (
       !user ||
-      !user.resetPasswordTokenExpiry ||
-      user.resetPasswordTokenExpiry < new Date()
+      !user.passwordResetTokenExpiresAt ||
+      user.passwordResetTokenExpiresAt < new Date()
     ) {
       throw new BadRequestException('Invalid or expired reset token');
     }
@@ -201,8 +203,8 @@ export class AuthService {
 
     await this.usersService.update(user.id, {
       password: hashedPassword,
-      resetPasswordToken: null,
-      resetPasswordTokenExpiry: null,
+      passwordResetToken: null,
+      passwordResetTokenExpiresAt: null,
       refreshToken: null, // invalidate all sessions
     });
 
@@ -225,8 +227,9 @@ export class AuthService {
     userId: string,
     email: string,
     role: Role,
+    tenantId: string | null,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload: JwtPayload = { sub: userId, email, role };
+    const payload: JwtPayload = { sub: userId, email, role, tenantId };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {

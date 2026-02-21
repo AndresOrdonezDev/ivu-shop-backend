@@ -15,8 +15,12 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 100 })
-  name: string;
+  @Column({ type: 'uuid', nullable: true })
+  tenantId: string | null;
+
+  @ManyToOne(() => Tenant, (tenant) => tenant.users, { nullable: true })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant | null;
 
   @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
@@ -24,36 +28,41 @@ export class User {
   @Column({ type: 'varchar', select: false })
   password: string;
 
-  @Column({ type: 'enum', enum: Role, default: Role.USER })
+  @Column({ type: 'varchar', length: 100 })
+  firstName: string;
+
+  @Column({ type: 'varchar', length: 100 })
+  lastName: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone: string | null;
+
+  @Column({ type: 'enum', enum: Role, default: Role.EMPLOYEE })
   role: Role;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
   @Column({ type: 'boolean', default: false })
-  isVerified: boolean;
+  isEmailVerified: boolean;
 
   @Column({ type: 'varchar', nullable: true, select: false })
-  verificationToken: string | null;
+  emailVerificationToken: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  verificationTokenExpiry: Date | null;
+  emailVerificationTokenExpiresAt: Date | null;
 
   @Column({ type: 'varchar', nullable: true, select: false })
-  resetPasswordToken: string | null;
+  passwordResetToken: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  resetPasswordTokenExpiry: Date | null;
+  passwordResetTokenExpiresAt: Date | null;
 
   @Column({ type: 'varchar', nullable: true, select: false })
   refreshToken: string | null;
 
-  @Column({ type: 'uuid', nullable: true })
-  tenantId: string | null;
-
-  @ManyToOne(() => Tenant, { nullable: true })
-  @JoinColumn({ name: 'tenantId' })
-  tenant: Tenant | null;
+  @Column({ type: 'timestamp', nullable: true })
+  lastLoginAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;

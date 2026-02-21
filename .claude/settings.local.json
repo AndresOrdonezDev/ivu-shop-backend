@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"D:/desarrollos/PROYECTOS ACTUALES/ivu-shop-backend\" && npm run migration:run 2>&1)",
+      "Bash(cd \"D:/desarrollos/PROYECTOS ACTUALES/ivu-shop-backend\" && npm run migration:generate -- src/database/migrations/AddMultiTenantSchema 2>&1)",
+      "Bash(cd:*)",
+      "Bash(cd \"D:/desarrollos/PROYECTOS ACTUALES/ivu-shop-backend\" && npm run migration:generate -- src/database/migrations/CompleteSchema 2>&1)"
+    ]
+  }
+}

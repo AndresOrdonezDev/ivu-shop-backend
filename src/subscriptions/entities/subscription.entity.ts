@@ -35,11 +35,29 @@ export class Subscription {
   @Column({ type: 'timestamp', nullable: true })
   endDate: Date | null;
 
-  @ManyToOne(() => Tenant)
+  @Column({ type: 'timestamp', nullable: true })
+  trialStartDate: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  trialEndDate: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  cancelledAt: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  cancelReason: string | null;
+
+  @Column({ type: 'boolean', default: true })
+  autoRenew: boolean;
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, any> | null;
+
+  @ManyToOne(() => Tenant, (tenant) => tenant.subscriptions)
   @JoinColumn({ name: 'tenantId' })
   tenant: Tenant;
 
-  @ManyToOne(() => Plan)
+  @ManyToOne(() => Plan, (plan) => plan.subscriptions)
   @JoinColumn({ name: 'planId' })
   plan: Plan;
 
