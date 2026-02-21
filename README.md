@@ -4,10 +4,10 @@
   </a>
 </p>
 
-<h1 align="center">NestJS Backend Template</h1>
+<h1 align="center">IVU Shop — Backend</h1>
 
 <p align="center">
-  Production-ready NestJS starter with JWT authentication, refresh token rotation, email verification and PostgreSQL.
+  Multi-tenant SaaS backend for small businesses. Built on NestJS with JWT authentication, refresh token rotation, email verification, dual PostgreSQL databases and TypeORM.
 </p>
 
 <p align="center">
@@ -22,15 +22,18 @@
 
 ## Features
 
+- **Multi-tenant Architecture** — Tenant isolation with slug-based identification and business type classification
 - **JWT Authentication** — Access token (Bearer) + Refresh token (httpOnly cookie)
 - **Refresh Token Rotation** — New token pair on every refresh
 - **Reuse Detection** — Invalidates all sessions when a stolen token is detected
 - **Email Verification** — Account activation via email link
 - **Forgot / Reset Password** — Secure token-based password recovery
 - **Role-based Access Control** — `user` and `admin` roles with guards
-- **Database Migrations** — TypeORM migrations workflow ready
+- **Subscription & Plan Management** — Tenants linked to plans with trial/active/inactive lifecycle
+- **Dual Database Setup** — `shared_db` for core entities, `operations_db` for business-vertical data
+- **Database Migrations** — TypeORM migrations workflow for each database
 - **Input Validation** — `class-validator` + `class-transformer` on all DTOs
-- **Docker Compose** — PostgreSQL database ready to run locally
+- **Docker Compose** — Both PostgreSQL instances ready to run locally
 
 ---
 
@@ -40,11 +43,31 @@
 |---|---|
 | Framework | NestJS v11 |
 | Language | TypeScript 5.7 |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL 16 (×2) |
 | ORM | TypeORM 0.3 |
 | Auth | Passport.js + JWT |
 | Email | Resend |
 | Containerization | Docker + Docker Compose |
+
+---
+
+## Architecture — Dual Database
+
+```
+┌─────────────────────────────────┐   ┌──────────────────────────────────────┐
+│         shared_db               │   │           operations_db              │
+│         port 5433               │   │           port 5434                  │
+├─────────────────────────────────┤   ├──────────────────────────────────────┤
+│  users         (auth + tenantId)│   │  (business-vertical entities,        │
+│  tenants       (slug, type)     │   │   configured per vertical:           │
+│  plans         (price, limits)  │   │   bar, minimarket, auto parts, etc.) │
+│  subscriptions (tenant ↔ plan)  │   │                                      │
+└─────────────────────────────────┘   └──────────────────────────────────────┘
+```
+
+**Supported business types:** `bar`, `minimarket`, `auto_parts_shop`, `clothing_store`, `shoe_store`
+
+**Subscription statuses:** `trial` → `active` / `inactive`
 
 ---
 
@@ -53,7 +76,7 @@
 Make sure you have installed:
 
 - [Node.js](https://nodejs.org/) v18 or higher
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for the database)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for the databases)
 - A [Resend](https://resend.com/) account (free tier) for sending emails
 
 ---
@@ -63,8 +86,8 @@ Make sure you have installed:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/andresdev-nest-backend-template.git
-cd andresdev-nest-backend-template
+git clone https://github.com/your-username/ivu-shop-backend.git
+cd ivu-shop-backend
 ```
 
 ### 2. Install dependencies
@@ -79,17 +102,21 @@ npm install
 cp .env.template .env
 ```
 
-Then open `.env` and fill in the values (see [Environment Variables](#environment-variables) section below).
+Then open `.env` and fill in the values (see [Environment Variables](#environment-variables) below).
 
-### 4. Start the database
+### 4. Start the databases
 
 ```bash
 docker compose up -d
 ```
 
-This starts a PostgreSQL instance on port `5434`.
+This starts two PostgreSQL instances:
+- `shared_db` on port `5433`
+- `operations_db` on port `5434`
 
 ### 5. Run database migrations
+
+Migrations only target `shared_db`. `operations_db` is managed separately per business vertical.
 
 ```bash
 npm run migration:run
@@ -105,27 +132,44 @@ npm run start:dev
 npm run start:prod
 ```
 
-The API will be available at: `http://localhost:3000/api/v1`
+The API will be available at: `http://localhost:3001/api/v1`
 
 ---
 
 ## Environment Variables
 
+### Shared DB (Docker + TypeORM)
+
 | Variable | Description | Example |
 |---|---|---|
-| `POSTGRES_USER` | PostgreSQL superuser | `postgres` |
-| `POSTGRES_PASSWORD` | PostgreSQL password | `secret` |
-| `POSTGRES_DB` | PostgreSQL database name | `myapp` |
-| `DB_HOST` | Database host | `localhost` |
-| `DB_PORT` | Database port | `5434` |
-| `DB_USERNAME` | App DB username | `postgres` |
-| `DB_PASSWORD` | App DB password | `secret` |
-| `DB_NAME` | App DB name | `myapp` |
+| `SHARED_DB_HOST` | Host for shared_db | `localhost` |
+| `SHARED_DB_PORT` | Host port for shared_db | `5433` |
+| `SHARED_DB_USER` | PostgreSQL user (Docker) | `postgres` |
+| `SHARED_DB_USERNAME` | App DB username (TypeORM) | `postgres` |
+| `SHARED_DB_PASSWORD` | Database password | `secret` |
+| `SHARED_DB_NAME` | Database name | `ivu_shared` |
+
+### Operations DB (Docker + TypeORM)
+
+| Variable | Description | Example |
+|---|---|---|
+| `OPERATIONS_DB_HOST` | Host for operations_db | `localhost` |
+| `OPERATIONS_DB_PORT` | Host port for operations_db | `5434` |
+| `OPERATIONS_DB_USER` | PostgreSQL user (Docker) | `postgres` |
+| `OPERATIONS_DB_USERNAME` | App DB username (TypeORM) | `postgres` |
+| `OPERATIONS_DB_PASSWORD` | Database password | `secret` |
+| `OPERATIONS_DB_NAME` | Database name | `ivu_operations` |
+
+### Auth & App
+
+| Variable | Description | Example |
+|---|---|---|
+| `PORT` | App port | `3001` |
 | `JWT_SECRET` | Secret for access tokens | `a-long-random-string` |
 | `JWT_EXPIRES_IN` | Access token TTL | `15m` |
 | `JWT_REFRESH_SECRET` | Secret for refresh tokens | `another-long-random-string` |
 | `JWT_REFRESH_EXPIRES_IN` | Refresh token TTL | `7d` |
-| `FRONTEND_URL` | Your frontend URL (for email links) | `http://localhost:3000` |
+| `FRONTEND_URL` | Frontend URL (for email links) | `http://localhost:3000` |
 | `RESEND_API_KEY` | Resend API key | `re_xxxxxxxxxxxx` |
 | `RESEND_FROM_EMAIL` | Sender email address | `no-reply@yourdomain.com` |
 
@@ -151,6 +195,8 @@ Base URL: `/api/v1`
 
 ## Database Migrations
 
+Migrations are scoped to `shared_db` via `src/database/data-source.ts`.
+
 ```bash
 # Run all pending migrations
 npm run migration:run
@@ -162,6 +208,13 @@ npm run migration:revert
 npm run migration:generate -- src/database/migrations/MigrationName
 ```
 
+### Executed migrations
+
+| Migration | Description |
+|---|---|
+| `1771561077050-CreateUsersTable` | Creates `users` table with auth fields |
+| `1771646855376-AddMultiTenantSchema` | Creates `tenants`, `plans`, `subscriptions`; adds `tenantId` FK to `users` |
+
 ---
 
 ## Project Structure
@@ -172,24 +225,30 @@ src/
 │   ├── dto/                  # Request validation schemas
 │   ├── strategies/           # Passport JWT strategies
 │   ├── types/                # JwtPayload interface
-│   ├── auth.controller.ts    # Auth endpoints
+│   ├── auth.controller.ts
 │   ├── auth.module.ts
-│   └── auth.service.ts       # Auth business logic
+│   └── auth.service.ts
 ├── common/
 │   ├── decorators/           # @CurrentUser, @Roles
-│   ├── enums/                # Role enum
+│   ├── enums/                # Role, BusinessType, SubscriptionStatus
 │   └── guards/               # JwtAuthGuard, RolesGuard
 ├── database/
-│   ├── migrations/           # TypeORM migration files
-│   └── data-source.ts        # Standalone DataSource for CLI
+│   ├── migrations/           # TypeORM migration files (shared_db)
+│   └── data-source.ts        # Standalone DataSource for CLI (shared_db)
 ├── mail/
 │   ├── templates/            # Email HTML templates
 │   └── mail.service.ts       # Resend integration
+├── plans/
+│   └── entities/             # Plan entity
+├── subscriptions/
+│   └── entities/             # Subscription entity (Tenant ↔ Plan)
+├── tenants/
+│   └── entities/             # Tenant entity
 ├── users/
 │   ├── dto/
-│   ├── entities/             # User entity
+│   ├── entities/             # User entity (with tenantId FK)
 │   └── users.service.ts
-├── app.module.ts
+├── app.module.ts             # Two TypeORM connections (shared + operations)
 └── main.ts
 ```
 

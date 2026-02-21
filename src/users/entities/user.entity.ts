@@ -2,10 +2,13 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 
 @Entity('users')
 export class User {
@@ -44,6 +47,13 @@ export class User {
 
   @Column({ type: 'varchar', nullable: true, select: false })
   refreshToken: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  tenantId: string | null;
+
+  @ManyToOne(() => Tenant, { nullable: true })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant | null;
 
   @CreateDateColumn()
   createdAt: Date;

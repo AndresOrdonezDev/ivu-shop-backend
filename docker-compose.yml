@@ -1,14 +1,26 @@
 services:
-  postgres:
+  shared_db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${SHARED_DB_USER}
+      POSTGRES_PASSWORD: ${SHARED_DB_PASSWORD}
+      POSTGRES_DB: ${SHARED_DB_NAME}
+    ports:
+      - '5433:5432'
+    volumes:
+      - ivu_shared_db_data:/var/lib/postgresql/data
+
+  operations_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${OPERATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${OPERATIONS_DB_PASSWORD}
+      POSTGRES_DB: ${OPERATIONS_DB_NAME}
     ports:
       - '5434:5432'
     volumes:
-      - andresdev_postgres_data:/var/lib/postgresql/data
+      - ivu_operations_db_data:/var/lib/postgresql/data
 
 volumes:
-  andresdev_postgres_data:
+  ivu_shared_db_data:
+  ivu_operations_db_data:
