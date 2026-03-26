@@ -132,7 +132,7 @@ async function seedDevTenant() {
   const adminEmail = 'admin@ivu.shop';
   let adminUser = await userRepo.findOne({ where: { email: adminEmail } });
   if (!adminUser) {
-    const adminPassword = await bcrypt.hash('Admin1234!', 12);
+    const adminPassword = await bcrypt.hash('Andres93.', 12);
     await userRepo.save({
       tenantId: platformTenant.id,
       email: adminEmail,

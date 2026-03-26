@@ -4,7 +4,17 @@
       "Bash(cd \"D:/desarrollos/PROYECTOS ACTUALES/ivu-shop-backend\" && npm run migration:run 2>&1)",
       "Bash(cd \"D:/desarrollos/PROYECTOS ACTUALES/ivu-shop-backend\" && npm run migration:generate -- src/database/migrations/AddMultiTenantSchema 2>&1)",
       "Bash(cd:*)",
-      "Bash(cd \"D:/desarrollos/PROYECTOS ACTUALES/ivu-shop-backend\" && npm run migration:generate -- src/database/migrations/CompleteSchema 2>&1)"
+      "Bash(cd \"D:/desarrollos/PROYECTOS ACTUALES/ivu-shop-backend\" && npm run migration:generate -- src/database/migrations/CompleteSchema 2>&1)",
+      "Bash(cp -r src/auth src/core/)",
+      "Bash(cp -r src/users src/core/)",
+      "Bash(cp -r src/tenants src/core/)",
+      "Bash(cp -r src/plans src/core/)",
+      "Bash(cp -r src/subscriptions src/core/)",
+      "Bash(rm -rf src/auth src/users src/tenants src/plans src/subscriptions src/mail)",
+      "Bash(touch src/features/.gitkeep)",
+      "Bash(npm run:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }
