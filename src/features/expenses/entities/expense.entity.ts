@@ -1,7 +1,8 @@
 import {
-  Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn,
+  Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn,
 } from 'typeorm';
 import { ExpensePaymentType } from '../enums/expense-payment-type.enum';
+import { ExpenseCategory } from './expense-category.entity';
 
 @Entity('expenses')
 export class Expense {
@@ -13,6 +14,10 @@ export class Expense {
 
   @Column({ type: 'uuid', nullable: true })
   categoryId: string | null;
+
+  @ManyToOne(() => ExpenseCategory, { nullable: true })
+  @JoinColumn({ name: 'categoryId' })
+  category: ExpenseCategory | null;
 
   @Column({ type: 'uuid' })
   userId: string;

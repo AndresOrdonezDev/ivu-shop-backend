@@ -90,7 +90,7 @@ export class InventoryService {
       productId: dto.productId,
       type: MovementType.ADJUSTMENT,
       quantity: dto.quantity,
-      costAtMovement: product.cost,
+      costAtMovement: product.averageCost,
       referenceType: ReferenceType.MANUAL,
       note: dto.note,
     });

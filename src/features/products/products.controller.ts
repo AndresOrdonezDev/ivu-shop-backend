@@ -13,7 +13,7 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { CreateCategoryDto } from './dto/create-category.dto';
+import { CreateLineDto } from './dto/create-line.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -26,26 +26,26 @@ import { User } from '../../core/users/entities/user.entity';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  // ─── Categories ───────────────────────────────────────────────────────────────
+  // ─── Lines ────────────────────────────────────────────────────────────────────
 
-  @Get('categories')
-  findAllCategories(@CurrentUser() user: User) {
-    return this.productsService.findAllCategories(user.tenantId!);
+  @Get('lines')
+  findAllLines(@CurrentUser() user: User) {
+    return this.productsService.findAllLines(user.tenantId!);
   }
 
-  @Post('categories')
+  @Post('lines')
   @UseGuards(RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN)
-  createCategory(@Body() dto: CreateCategoryDto, @CurrentUser() user: User) {
-    return this.productsService.createCategory(dto, user.tenantId!);
+  createLine(@Body() dto: CreateLineDto, @CurrentUser() user: User) {
+    return this.productsService.createLine(dto, user.tenantId!);
   }
 
-  @Delete('categories/:id')
+  @Delete('lines/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN)
-  deleteCategory(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.productsService.deleteCategory(id, user.tenantId!);
+  deleteLine(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.productsService.deleteLine(id, user.tenantId!);
   }
 
   // ─── Barcode lookup — POS ─────────────────────────────────────────────────────

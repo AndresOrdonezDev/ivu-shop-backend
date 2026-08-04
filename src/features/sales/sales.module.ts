@@ -6,11 +6,13 @@ import { Product } from '../products/entities/product.entity';
 import { SalesService } from './sales.service';
 import { SalesController } from './sales.controller';
 import { InventoryModule } from '../inventory/inventory.module';
+import { ThirdpartiesModule } from '../thirdparties/thirdparties.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Sale, SaleItem, Product], 'operations'),
     InventoryModule,
+    ThirdpartiesModule,
   ],
   controllers: [SalesController],
   providers: [SalesService],

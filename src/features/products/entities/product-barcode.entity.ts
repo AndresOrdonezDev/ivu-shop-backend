@@ -9,7 +9,7 @@ import {
 import { Product } from './product.entity';
 
 @Entity('product_barcodes')
-@Index(['tenantId', 'barcode'])
+@Index(['tenantId', 'barcode'], { unique: true })
 export class ProductBarcode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -23,7 +23,9 @@ export class ProductBarcode {
   @Column({ type: 'varchar', length: 100 })
   barcode: string;
 
-  @ManyToOne(() => Product, (product) => product.barcodes, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Product, (product) => product.barcodes, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'productId' })
   product: Product;
 }

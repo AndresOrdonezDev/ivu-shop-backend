@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -9,8 +10,13 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { ProductType } from '../enums/product-type.enum';
 
 export class UpdateProductDto {
+  @IsEnum(ProductType)
+  @IsOptional()
+  type?: ProductType;
+
   @IsString()
   @MaxLength(200)
   @IsOptional()
@@ -19,6 +25,11 @@ export class UpdateProductDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @MaxLength(100)
+  @IsOptional()
+  refFabrica?: string;
 
   @IsNumber()
   @Min(0)
@@ -44,10 +55,9 @@ export class UpdateProductDto {
   @IsOptional()
   isActive?: boolean;
 
-  @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID()
   @IsOptional()
-  categoryIds?: string[];
+  lineId?: string;
 
   @IsArray()
   @IsString({ each: true })

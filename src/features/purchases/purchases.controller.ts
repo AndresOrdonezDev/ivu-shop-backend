@@ -1,10 +1,7 @@
-import {
-  Body, Controller, Get, HttpCode, HttpStatus,
-  Param, Patch, Post, UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { PurchasesService } from './purchases.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
-import { UpdatePurchaseStatusDto } from './dto/update-purchase-status.dto';
+import { RegisterPaymentDto } from './dto/register-payment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -35,16 +32,30 @@ export class PurchasesController {
 
   @Post()
   create(@Body() dto: CreatePurchaseDto, @CurrentUser() user: User) {
-    return this.purchasesService.create(dto, user.tenantId!);
+    return this.purchasesService.create(dto, user.tenantId!, user.id);
   }
 
-  @Patch(':id/status')
-  @HttpCode(HttpStatus.OK)
-  updateStatus(
+  @Get(':id/payments')
+  findPayments(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.purchasesService.findPayments(id, user.tenantId!);
+  }
+
+  @Post(':id/payments')
+  registerPayment(
     @Param('id') id: string,
-    @Body() dto: UpdatePurchaseStatusDto,
+    @Body() dto: RegisterPaymentDto,
     @CurrentUser() user: User,
   ) {
-    return this.purchasesService.updateStatus(id, dto, user.tenantId!);
+    return this.purchasesService.registerPayment(
+      id,
+      dto,
+      user.tenantId!,
+      user.id,
+    );
+  }
+
+  @Post(':id/cancel')
+  cancel(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.purchasesService.cancel(id, user.tenantId!);
   }
 }

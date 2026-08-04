@@ -11,9 +11,8 @@ import { TenantsModule } from './core/tenants/tenants.module';
 import { TenantConnectionInterceptor } from './common/interceptors/tenant-connection.interceptor';
 import { ProductsModule } from './features/products/products.module';
 import { InventoryModule } from './features/inventory/inventory.module';
-import { SuppliersModule } from './features/suppliers/suppliers.module';
+import { ThirdpartiesModule } from './features/thirdparties/thirdparties.module';
 import { PurchasesModule } from './features/purchases/purchases.module';
-import { CustomersModule } from './features/customers/customers.module';
 import { SalesModule } from './features/sales/sales.module';
 import { ExpensesModule } from './features/expenses/expenses.module';
 import { ReportsModule } from './features/reports/reports.module';
@@ -66,9 +65,8 @@ import { ReportsModule } from './features/reports/reports.module';
     TenantsModule,
     ProductsModule,
     InventoryModule,
-    SuppliersModule,
+    ThirdpartiesModule,
     PurchasesModule,
-    CustomersModule,
     SalesModule,
     ExpensesModule,
     ReportsModule,

@@ -1,12 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
-import { ProductCategory } from './entities/product-category.entity';
+import { ProductLine } from './entities/product-line.entity';
 import { ProductBarcode } from './entities/product-barcode.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { CreateCategoryDto } from './dto/create-category.dto';
+import { CreateLineDto } from './dto/create-line.dto';
 import { InventoryService } from '../inventory/inventory.service';
 import { MovementType } from '../inventory/enums/movement-type.enum';
 import { ReferenceType } from '../inventory/enums/reference-type.enum';
@@ -16,30 +20,30 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product, 'operations')
     private readonly productRepo: Repository<Product>,
-    @InjectRepository(ProductCategory, 'operations')
-    private readonly categoryRepo: Repository<ProductCategory>,
+    @InjectRepository(ProductLine, 'operations')
+    private readonly lineRepo: Repository<ProductLine>,
     @InjectRepository(ProductBarcode, 'operations')
     private readonly barcodeRepo: Repository<ProductBarcode>,
     private readonly inventoryService: InventoryService,
   ) {}
 
-  // ─── Categories ───────────────────────────────────────────────────────────────
+  // ─── Lines ────────────────────────────────────────────────────────────────────
 
-  async findAllCategories(tenantId: string): Promise<ProductCategory[]> {
-    return this.categoryRepo.find({
+  async findAllLines(tenantId: string): Promise<ProductLine[]> {
+    return this.lineRepo.find({
       where: { tenantId },
       order: { name: 'ASC' },
     });
   }
 
-  async createCategory(dto: CreateCategoryDto, tenantId: string): Promise<ProductCategory> {
-    return this.categoryRepo.save({ name: dto.name, tenantId });
+  async createLine(dto: CreateLineDto, tenantId: string): Promise<ProductLine> {
+    return this.lineRepo.save({ name: dto.name, tenantId });
   }
 
-  async deleteCategory(id: string, tenantId: string): Promise<void> {
-    const category = await this.categoryRepo.findOne({ where: { id, tenantId } });
-    if (!category) throw new NotFoundException('Category not found');
-    await this.categoryRepo.delete(id);
+  async deleteLine(id: string, tenantId: string): Promise<void> {
+    const line = await this.lineRepo.findOne({ where: { id, tenantId } });
+    if (!line) throw new NotFoundException('Line not found');
+    await this.lineRepo.delete(id);
   }
 
   // ─── Products ─────────────────────────────────────────────────────────────────
@@ -47,7 +51,7 @@ export class ProductsService {
   async findAll(tenantId: string): Promise<Product[]> {
     return this.productRepo.find({
       where: { tenantId, isActive: true },
-      relations: ['categories', 'barcodes'],
+      relations: ['line', 'barcodes'],
       order: { name: 'ASC' },
     });
   }
@@ -55,7 +59,7 @@ export class ProductsService {
   async findById(id: string, tenantId: string): Promise<Product> {
     const product = await this.productRepo.findOne({
       where: { id, tenantId },
-      relations: ['categories', 'barcodes'],
+      relations: ['line', 'barcodes'],
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;
@@ -66,7 +70,7 @@ export class ProductsService {
   async findByBarcode(barcode: string, tenantId: string): Promise<Product> {
     const entry = await this.barcodeRepo.findOne({
       where: { barcode, tenantId },
-      relations: ['product', 'product.categories'],
+      relations: ['product', 'product.line'],
     });
     if (!entry || !entry.product.isActive) {
       throw new NotFoundException('Product not found');
@@ -77,30 +81,25 @@ export class ProductsService {
   // ─── Create ───────────────────────────────────────────────────────────────────
 
   async create(dto: CreateProductDto, tenantId: string): Promise<Product> {
+    const cost = dto.cost ?? 0;
     const product = await this.productRepo.save({
       tenantId,
+      type: dto.type ?? undefined,
       name: dto.name,
       description: dto.description ?? null,
+      refFabrica: dto.refFabrica ?? null,
       price: dto.price,
-      cost: dto.cost ?? 0,
+      cost,
+      averageCost: cost,
       tax: dto.tax ?? 0,
       minStock: dto.minStock ?? 0,
+      lineId: dto.lineId ?? null,
       stock: 0, // siempre empieza en 0, el movimiento INITIAL lo actualiza
     });
 
-    if (dto.categoryIds?.length) {
-      const categories = await this.categoryRepo.findBy({
-        id: In(dto.categoryIds),
-        tenantId,
-      });
-      product.categories = categories;
-      await this.productRepo.save(product);
-    }
-
     if (dto.barcodes?.length) {
-      await this.barcodeRepo.save(
-        dto.barcodes.map((barcode) => ({ tenantId, productId: product.id, barcode })),
-      );
+      this.assertNoDuplicateBarcodes(dto.barcodes);
+      await this.saveBarcodes(product.id, tenantId, dto.barcodes);
     }
 
     if (dto.initialStock && dto.initialStock > 0) {
@@ -109,7 +108,7 @@ export class ProductsService {
         productId: product.id,
         type: MovementType.INITIAL,
         quantity: dto.initialStock,
-        costAtMovement: dto.cost ?? 0,
+        costAtMovement: cost,
         referenceType: ReferenceType.MANUAL,
         note: 'Stock inicial',
       });
@@ -120,32 +119,54 @@ export class ProductsService {
 
   // ─── Update ───────────────────────────────────────────────────────────────────
 
-  async update(id: string, dto: UpdateProductDto, tenantId: string): Promise<Product> {
-    const product = await this.findById(id, tenantId);
-    const { categoryIds, barcodes, ...fields } = dto;
+  async update(
+    id: string,
+    dto: UpdateProductDto,
+    tenantId: string,
+  ): Promise<Product> {
+    await this.findById(id, tenantId);
+    const { barcodes, ...fields } = dto;
 
     if (Object.keys(fields).length) {
       await this.productRepo.update(id, fields);
     }
 
-    if (categoryIds !== undefined) {
-      const categories = categoryIds.length
-        ? await this.categoryRepo.findBy({ id: In(categoryIds), tenantId })
-        : [];
-      product.categories = categories;
-      await this.productRepo.save(product);
-    }
-
     if (barcodes !== undefined) {
+      if (barcodes.length) this.assertNoDuplicateBarcodes(barcodes);
       await this.barcodeRepo.delete({ productId: id, tenantId });
       if (barcodes.length) {
-        await this.barcodeRepo.save(
-          barcodes.map((barcode) => ({ tenantId, productId: id, barcode })),
-        );
+        await this.saveBarcodes(id, tenantId, barcodes);
       }
     }
 
     return this.findById(id, tenantId);
+  }
+
+  private assertNoDuplicateBarcodes(barcodes: string[]): void {
+    if (new Set(barcodes).size !== barcodes.length) {
+      throw new BadRequestException(
+        'Códigos de barras duplicados en la solicitud',
+      );
+    }
+  }
+
+  private async saveBarcodes(
+    productId: string,
+    tenantId: string,
+    barcodes: string[],
+  ): Promise<void> {
+    try {
+      await this.barcodeRepo.save(
+        barcodes.map((barcode) => ({ tenantId, productId, barcode })),
+      );
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        throw new BadRequestException(
+          'Uno de los códigos de barras ya está en uso por otro producto',
+        );
+      }
+      throw error;
+    }
   }
 
   // ─── Deactivate ───────────────────────────────────────────────────────────────

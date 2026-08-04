@@ -1,12 +1,17 @@
 import {
-  BadRequestException, Injectable, NotFoundException,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { Product } from '../products/entities/product.entity';
+import { ProductType } from '../products/enums/product-type.enum';
+import { ThirdParty } from '../thirdparties/entities/third-party.entity';
 import { InventoryService } from '../inventory/inventory.service';
+import { ThirdpartiesService } from '../thirdparties/thirdparties.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { SaleStatus } from './enums/sale-status.enum';
 import { MovementType } from '../inventory/enums/movement-type.enum';
@@ -22,6 +27,7 @@ export class SalesService {
     @InjectRepository(Product, 'operations')
     private readonly productRepo: Repository<Product>,
     private readonly inventoryService: InventoryService,
+    private readonly thirdpartiesService: ThirdpartiesService,
     @InjectDataSource('operations')
     private readonly dataSource: DataSource,
   ) {}
@@ -43,9 +49,27 @@ export class SalesService {
     return sale;
   }
 
-  async create(dto: CreateSaleDto, tenantId: string, userId: string): Promise<Sale> {
+  async create(
+    dto: CreateSaleDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<Sale> {
     if (!dto.items?.length) {
       throw new BadRequestException('Sale must have at least one item');
+    }
+
+    // Si viene un tercero, validar que exista, sea del tenant y esté marcado como cliente
+    let thirdParty: ThirdParty | null = null;
+    if (dto.thirdPartyId) {
+      thirdParty = await this.thirdpartiesService.findById(
+        dto.thirdPartyId,
+        tenantId,
+      );
+      if (!thirdParty.isCustomer) {
+        throw new BadRequestException(
+          'Third party is not marked as a customer',
+        );
+      }
     }
 
     // Cargar todos los productos y validar que pertenecen al tenant
@@ -58,15 +82,20 @@ export class SalesService {
       .getMany();
 
     if (products.length !== productIds.length) {
-      throw new BadRequestException('One or more products not found or inactive');
+      throw new BadRequestException(
+        'One or more products not found or inactive',
+      );
     }
 
     const productMap = new Map(products.map((p) => [p.id, p]));
 
-    // Validar stock suficiente para cada item
+    // Validar stock suficiente para cada item (los servicios no manejan stock)
     for (const item of dto.items) {
       const product = productMap.get(item.productId)!;
-      if (product.stock < item.quantity) {
+      if (
+        product.type === ProductType.PRODUCT &&
+        product.stock < item.quantity
+      ) {
         throw new BadRequestException(
           `Insufficient stock for product "${product.name}". Available: ${product.stock}`,
         );
@@ -76,8 +105,11 @@ export class SalesService {
     // Preparar datos de items con snapshots de precio y costo
     const itemsData = dto.items.map((item) => {
       const product = productMap.get(item.productId)!;
-      const unitPrice = Number(product.price);
-      const costAtSale = Number(product.cost);
+      const costAtSale = Number(product.averageCost);
+      // RN02 de terceros: si el tercero factura a costo, se cobra costo promedio + iva en vez del precio de venta
+      const unitPrice = thirdParty?.invoiceAtCost
+        ? costAtSale
+        : Number(product.price);
       const taxPercent = product.tax ?? 0;
       const itemDiscount = item.discount ?? 0;
       const subtotalBeforeTax = unitPrice * item.quantity - itemDiscount;
@@ -106,7 +138,7 @@ export class SalesService {
       // 1. Crear la venta
       createdSale = await manager.save(Sale, {
         tenantId,
-        customerId: dto.customerId ?? null,
+        thirdPartyId: dto.thirdPartyId ?? null,
         userId,
         paymentType: dto.paymentType,
         status: SaleStatus.COMPLETED,
@@ -132,14 +164,18 @@ export class SalesService {
         });
 
         const product = productMap.get(item.productId)!;
-        await manager.update(Product, item.productId, {
-          stock: product.stock - item.quantity,
-        });
+        if (product.type === ProductType.PRODUCT) {
+          await manager.update(Product, item.productId, {
+            stock: product.stock - item.quantity,
+          });
+        }
       }
     });
 
-    // 3. Registrar movimientos de inventario (auditoría)
+    // 3. Registrar movimientos de inventario (auditoría) — no aplica a servicios, que no manejan stock
     for (const item of itemsData) {
+      const product = productMap.get(item.productId)!;
+      if (product.type !== ProductType.PRODUCT) continue;
       await this.inventoryService.createMovement({
         tenantId,
         productId: item.productId,
@@ -163,18 +199,33 @@ export class SalesService {
       throw new BadRequestException('Sale is already cancelled');
     }
 
+    // Los servicios no manejan stock: se excluyen de la restauración y de los movimientos de devolución
+    const productIds = sale.items.map((item) => item.productId);
+    const products = await this.productRepo.find({
+      where: { tenantId, id: In(productIds) },
+    });
+    const typeMap = new Map(products.map((p) => [p.id, p.type]));
+    const stockItems = sale.items.filter(
+      (item) => typeMap.get(item.productId) === ProductType.PRODUCT,
+    );
+
     await this.dataSource.transaction(async (manager) => {
       // Marcar como cancelada
       await manager.update(Sale, id, { status: SaleStatus.CANCELLED });
 
       // Restaurar stock
-      for (const item of sale.items) {
-        await manager.increment(Product, { id: item.productId }, 'stock', item.quantity);
+      for (const item of stockItems) {
+        await manager.increment(
+          Product,
+          { id: item.productId },
+          'stock',
+          item.quantity,
+        );
       }
     });
 
     // Registrar movimientos de devolución
-    for (const item of sale.items) {
+    for (const item of stockItems) {
       await this.inventoryService.createMovement({
         tenantId,
         productId: item.productId,

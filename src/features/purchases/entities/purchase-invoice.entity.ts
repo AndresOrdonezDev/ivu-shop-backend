@@ -5,6 +5,7 @@ import {
 import { PaymentType } from '../enums/payment-type.enum';
 import { PurchaseStatus } from '../enums/purchase-status.enum';
 import { PurchaseInvoiceItem } from './purchase-invoice-item.entity';
+import { Egreso } from './egreso.entity';
 
 @Entity('purchase_invoices')
 export class PurchaseInvoice {
@@ -15,7 +16,7 @@ export class PurchaseInvoice {
   tenantId: string;
 
   @Column({ type: 'uuid' })
-  supplierId: string;
+  thirdPartyId: string;
 
   @Column({ type: 'varchar', length: 100 })
   invoiceNumber: string;
@@ -46,6 +47,9 @@ export class PurchaseInvoice {
 
   @OneToMany(() => PurchaseInvoiceItem, (item) => item.invoice, { cascade: true })
   items: PurchaseInvoiceItem[];
+
+  @OneToMany(() => Egreso, (egreso) => egreso.invoice)
+  payments: Egreso[];
 
   @CreateDateColumn()
   createdAt: Date;

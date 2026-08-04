@@ -2,14 +2,15 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinTable,
-  ManyToMany,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ProductCategory } from './product-category.entity';
+import { ProductLine } from './product-line.entity';
 import { ProductBarcode } from './product-barcode.entity';
+import { ProductType } from '../enums/product-type.enum';
 
 @Entity('products')
 export class Product {
@@ -19,17 +20,26 @@ export class Product {
   @Column({ type: 'uuid' })
   tenantId: string;
 
+  @Column({ type: 'enum', enum: ProductType, default: ProductType.PRODUCT })
+  type: ProductType;
+
   @Column({ type: 'varchar', length: 200 })
   name: string;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  refFabrica: string | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   cost: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  averageCost: number;
 
   @Column({ type: 'int', default: 0 })
   tax: number;
@@ -43,13 +53,12 @@ export class Product {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @ManyToMany(() => ProductCategory, (category) => category.products)
-  @JoinTable({
-    name: 'product_category_rel',
-    joinColumn: { name: 'productId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'categoryId', referencedColumnName: 'id' },
-  })
-  categories: ProductCategory[];
+  @Column({ type: 'uuid', nullable: true })
+  lineId: string | null;
+
+  @ManyToOne(() => ProductLine, { nullable: true })
+  @JoinColumn({ name: 'lineId' })
+  line: ProductLine | null;
 
   @OneToMany(() => ProductBarcode, (barcode) => barcode.product)
   barcodes: ProductBarcode[];

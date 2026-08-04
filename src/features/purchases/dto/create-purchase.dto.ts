@@ -8,7 +8,7 @@ import { PurchaseItemDto } from './purchase-item.dto';
 
 export class CreatePurchaseDto {
   @IsUUID()
-  supplierId: string;
+  thirdPartyId: string;
 
   @IsString()
   @MaxLength(100)

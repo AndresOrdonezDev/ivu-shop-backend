@@ -9,7 +9,7 @@ import { SaleItemDto } from './sale-item.dto';
 export class CreateSaleDto {
   @IsUUID()
   @IsOptional()
-  customerId?: string;
+  thirdPartyId?: string;
 
   @IsEnum(SalePaymentType)
   paymentType: SalePaymentType;

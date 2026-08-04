@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { Expense } from './entities/expense.entity';
 import { ExpenseCategory } from './entities/expense-category.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -29,7 +29,11 @@ export class ExpensesService {
     dto: CreateExpenseCategoryDto,
     tenantId: string,
   ): Promise<ExpenseCategory> {
-    return this.categoryRepo.save({ name: dto.name, tenantId });
+    const existing = await this.categoryRepo.findOne({
+      where: { tenantId, name: ILike(dto.name.trim()) },
+    });
+    if (existing) throw new BadRequestException('A category with that name already exists');
+    return this.categoryRepo.save({ name: dto.name.trim(), tenantId });
   }
 
   async deleteCategory(id: string, tenantId: string): Promise<void> {
@@ -43,12 +47,16 @@ export class ExpensesService {
   async findAll(tenantId: string): Promise<Expense[]> {
     return this.expenseRepo.find({
       where: { tenantId },
+      relations: ['category'],
       order: { expenseDate: 'DESC' },
     });
   }
 
   async findById(id: string, tenantId: string): Promise<Expense> {
-    const expense = await this.expenseRepo.findOne({ where: { id, tenantId } });
+    const expense = await this.expenseRepo.findOne({
+      where: { id, tenantId },
+      relations: ['category'],
+    });
     if (!expense) throw new NotFoundException('Expense not found');
     return expense;
   }

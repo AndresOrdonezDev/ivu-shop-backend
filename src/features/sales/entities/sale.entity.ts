@@ -15,7 +15,7 @@ export class Sale {
   tenantId: string;
 
   @Column({ type: 'uuid', nullable: true })
-  customerId: string | null;
+  thirdPartyId: string | null;
 
   @Column({ type: 'uuid' })
   userId: string;
