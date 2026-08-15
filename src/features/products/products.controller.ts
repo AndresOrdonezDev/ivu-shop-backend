@@ -40,6 +40,17 @@ export class ProductsController {
     return this.productsService.createLine(dto, user.tenantId!);
   }
 
+  @Patch('lines/:id')
+  @UseGuards(RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN)
+  updateLine(
+    @Param('id') id: string,
+    @Body() dto: CreateLineDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.productsService.updateLine(id, dto, user.tenantId!);
+  }
+
   @Delete('lines/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(RolesGuard)
@@ -89,7 +100,7 @@ export class ProductsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN)
-  deactivate(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.productsService.deactivate(id, user.tenantId!);
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.productsService.remove(id, user.tenantId!);
   }
 }

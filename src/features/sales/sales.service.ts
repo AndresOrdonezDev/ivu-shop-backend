@@ -102,14 +102,30 @@ export class SalesService {
       }
     }
 
+    // Servicios de precio variable: el precio se captura al momento de la venta
+    for (const item of dto.items) {
+      const product = productMap.get(item.productId)!;
+      if (
+        product.isVariablePrice &&
+        (item.unitPrice === undefined || item.unitPrice <= 0)
+      ) {
+        throw new BadRequestException(
+          `Debe indicar el precio para el servicio "${product.name}"`,
+        );
+      }
+    }
+
     // Preparar datos de items con snapshots de precio y costo
     const itemsData = dto.items.map((item) => {
       const product = productMap.get(item.productId)!;
       const costAtSale = Number(product.averageCost);
       // RN02 de terceros: si el tercero factura a costo, se cobra costo promedio + iva en vez del precio de venta
+      // Los productos de precio variable ignoran product.price (es solo un placeholder en 0) y usan el precio capturado en el POS
       const unitPrice = thirdParty?.invoiceAtCost
         ? costAtSale
-        : Number(product.price);
+        : product.isVariablePrice
+          ? item.unitPrice!
+          : Number(product.price);
       const taxPercent = product.tax ?? 0;
       const itemDiscount = item.discount ?? 0;
       const subtotalBeforeTax = unitPrice * item.quantity - itemDiscount;

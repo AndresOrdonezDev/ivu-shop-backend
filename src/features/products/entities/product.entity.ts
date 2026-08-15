@@ -35,6 +35,9 @@ export class Product {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 
+  @Column({ type: 'boolean', default: false })
+  isVariablePrice: boolean;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   cost: number;
 

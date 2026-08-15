@@ -9,6 +9,7 @@ import {
   IsUUID,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { ProductType } from '../enums/product-type.enum';
 
@@ -31,32 +32,36 @@ export class UpdateProductDto {
   @IsOptional()
   refFabrica?: string;
 
+  @ValidateIf((o: UpdateProductDto) => o.price !== undefined)
   @IsNumber()
   @Min(0)
-  @IsOptional()
   price?: number;
 
+  @ValidateIf((o: UpdateProductDto) => o.tax !== undefined)
   @IsInt()
   @Min(0)
-  @IsOptional()
   tax?: number;
 
+  @ValidateIf((o: UpdateProductDto) => o.cost !== undefined)
   @IsNumber()
   @Min(0)
-  @IsOptional()
   cost?: number;
 
+  @ValidateIf((o: UpdateProductDto) => o.minStock !== undefined)
   @IsInt()
   @Min(0)
-  @IsOptional()
   minStock?: number;
 
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
 
-  @IsUUID()
+  @IsBoolean()
   @IsOptional()
+  isVariablePrice?: boolean;
+
+  @ValidateIf((o: UpdateProductDto) => o.lineId !== undefined)
+  @IsUUID()
   lineId?: string;
 
   @IsArray()

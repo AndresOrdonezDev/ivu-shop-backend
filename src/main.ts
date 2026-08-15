@@ -6,6 +6,10 @@ import compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Evita que columnas `timestamp` (sin timezone) se lean con el offset local del host
+  // (ej: UTC-5) en vez de UTC, lo que hacía que createdAt/updatedAt llegaran ~5h adelantados.
+  process.env.TZ = 'UTC';
+
   const app = await NestFactory.create(AppModule);
 
   // ─── Seguridad ────────────────────────────────────────────────────────────────
